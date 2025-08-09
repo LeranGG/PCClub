@@ -116,9 +116,9 @@ async def cmd_buy(message: Message):
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_buy')
-        text = message.text.split('@PCClub_sBOT', 1)[0]
-        text = text.split('_', 1)
+        text = message.text.split('_', 1)
         text = text[1].split(' ', 1)
+        text[0] = text[0].split('@PCClub_sBOT')[0]
         if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
             stats = await conn.fetchrow('SELECT bal, room, pc, income FROM stats WHERE userid = $1', message.from_user.id)
             for el in prices:
