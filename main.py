@@ -42,7 +42,7 @@ async def every_10_min():
                 for taxe in taxes:
                     if user[8] == taxe[0] and user[7] >= taxe[1]:
                         pass
-                    else:
+                    elif user[8] == taxe[0] and user[7] < taxe[1]:
                         bufs = await conn.fetchrow('SELECT upgrade_Internet, upgrade_devices, upgrade_interior, upgrade_minibar, upgrade_service FROM stats WHERE userid = $1', user[0])
                         user_ad = await conn.fetchrow('SELECT * FROM ads WHERE userid = $1 ORDER BY dt DESC LIMIT 1', user[0])
                         i = user[2]
@@ -60,7 +60,7 @@ async def every_10_min():
 
                         if user[5] > datetime.datetime.today():
                             prem = i/2
-                        if user[0] == ADMIN[1]:
+                        if user[0] in ADMIN and TOKEN != '7391256097:AAGVbvFUMW5ShfffjsPFFvFl9QONZ2kJbu8':
                             admin = i/100*5
                         i = i + admin + prem + summ + ad_inc
                         await conn.execute('UPDATE stats SET bal = $1, all_wallet = $2, taxes = $3 WHERE userid = $4', i+user[1], i+user[4], user[7]+i/100*5, user[0])

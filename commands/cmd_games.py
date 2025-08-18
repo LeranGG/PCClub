@@ -59,7 +59,7 @@ async def cmd_game1_chat(message: Message):
         command = message.text[1:].split(' ')
         bal = await conn.fetchval('SELECT bal FROM stats WHERE userid = $1', message.from_user.id)
         b = Decimal(str(bal))
-        if command[2].isdigit() and command[1].lower() in ['орел', 'решка']:
+        if len(command) == 3 and command[2].isdigit() and command[1].lower() in ['орел', 'решка', 'орёл']:
             if int(command[2]) >= 5000:
                 if int(command[2]) <= bal:
                     value = randint(1, 100)

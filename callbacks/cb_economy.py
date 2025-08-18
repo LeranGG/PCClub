@@ -105,13 +105,19 @@ async def cb_shop_room(callback: CallbackQuery):
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_shop_room')
         stats = await conn.fetchrow('SELECT * FROM stats WHERE userid = $1', callback.from_user.id)
-        markup = InlineKeyboardMarkup(inline_keyboard=[
+        markup1 = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='⏫ Улучшить', callback_data=f'update_room_{callback.from_user.id}')],
+            [InlineKeyboardButton(text='🔙 Назад', callback_data=f'shop_{callback.from_user.id}')]
+        ])
+        markup2 = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='🔙 Назад', callback_data=f'shop_{callback.from_user.id}')]
         ])
         for el in update:
             if stats[2]+1 == el[0]:
-                await callback.message.edit_text(f'Уровень вашей комнаты: {stats[2]}\nМинимальный доход для улучшения: {el[2]}$\nЦена улучшения: {el[1]}$', reply_markup=markup)
+                await callback.message.edit_text(f'Уровень вашей комнаты: {stats[2]}\nМинимальный доход для улучшения: {el[2]}$\nЦена улучшения: {el[1]}$', reply_markup=markup1)
+                return
+        if stats[2] == 50:
+            await callback.message.edit_text(f'Уровень вашей комнаты: {stats[2]}\n❇️ Максимальный!', reply_markup=markup2)
 
 
 @cb_economy_router.callback_query(F.data.startswith('shop_upgrade'))
@@ -138,7 +144,7 @@ async def cb_shop_upgrade(callback: CallbackQuery):
         for el in els:
             for upg in upgrade:
                 if el[3]+1 == upg[0]:
-                    if upg[0] > 5:
+                    if upg[0] == 11:
                         text += f'\n\n{el[1]}: +{el[3]}%. Максимум'
                     else:
                         text += f'\n\n{el[1]}: +{el[3]}%. Цена: {upg[1]}$\nУлучшить: /{el[2]}'
