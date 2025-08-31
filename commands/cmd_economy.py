@@ -42,8 +42,7 @@ async def cmd_taxes(message: Message):
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         if user[2] >= user[1]:
-            await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', user[2] - user[1], message.from_user.id)
-            await conn.execute('UPDATE stats SET taxes = $1 WHERE userid = $2', 0, message.from_user.id)
+            await conn.execute('UPDATE stats SET bal = bal - taxes, taxes = 0 WHERE userid = $2', message.from_user.id)
             await message.answer(f'✅ Вы успешно уплатили все налоги. Общая сумма составила {user[1]}$')
         else:
             await message.answer('❌ У вас недостаточно средств')
@@ -72,7 +71,7 @@ async def cmd_shop(message: Message):
 async def cmd_sell(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal, income, pc FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
@@ -92,10 +91,9 @@ async def cmd_sell(message: Message):
                         if len(ctids) == int(text[1]):
                             inc = 0
                             for ctid in ctids:
-                                stats = await conn.fetchrow('SELECT bal, income, pc FROM stats WHERE userid = $1', message.from_user.id)
                                 comp = Decimal(str(pc[1]))
                                 await conn.execute('DELETE FROM pc WHERE ctid = $1', ctid[0])
-                                await conn.execute('UPDATE stats SET bal = $1, income = $2, pc = $3 WHERE userid = $4', stats[0]+pc[2]//2, stats[1]-comp, stats[2]-1, message.from_user.id)
+                                await conn.execute('UPDATE stats SET bal = bal + $1, income = income - $2, pc = pc - 1 WHERE userid = $4', pc[2]//2, comp, message.from_user.id)
                                 inc += pc[2]//2
                             await message.answer(f'✅ Вы успешно продали x{text[1]} Компьютер {pc[0]} ур. за {inc}$')
                         else:
@@ -110,7 +108,7 @@ async def cmd_sell(message: Message):
 async def cmd_buy(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal, room, pc, income FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
@@ -120,23 +118,20 @@ async def cmd_buy(message: Message):
         text = text[1].split(' ', 1)
         text[0] = text[0].split('@PCClub_sBOT')[0]
         if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
-            stats = await conn.fetchrow('SELECT bal, room, pc, income FROM stats WHERE userid = $1', message.from_user.id)
             for el in prices:
                 if len(text) == 1:
                     text.append('1')
-                if int(text[0]) == el[0] and stats[0] >= el[2]*int(text[1]) and stats[2]+int(text[1]) <= stats[1]*5 and stats[1] >= int(text[0]):
-                    bal = Decimal(str(stats[0]))
-                    income = Decimal(str(stats[3]))
+                if int(text[0]) == el[0] and user[1] >= el[2]*int(text[1]) and user[3]+int(text[1]) <= user[2]*5 and user[2] >= int(text[0]):
                     pc_inc = Decimal(str(el[1]))
-                    await conn.execute('UPDATE stats SET bal = $1, pc = $2, income = $3, all_pcs = all_pcs + $4 WHERE userid = $5', bal-el[2]*int(text[1]), stats[2]+int(text[1]), income+pc_inc*int(text[1]), int(text[1]), message.from_user.id)
+                    await conn.execute('UPDATE stats SET bal = bal - $1, pc = pc + $2, income = income + $3, all_pcs = all_pcs + $4 WHERE userid = $5', el[2]*int(text[1]), int(text[1]), pc_inc*int(text[1]), int(text[1]), message.from_user.id)
                     for i in range(0, int(text[1])):
                         await conn.execute('INSERT INTO pc (userid, lvl, income) VALUES ($1, $2, $3)', message.from_user.id, int(text[0]), pc_inc)
                     await message.answer(f'✅ Вы успешно купили x{text[1]} Компьютер {text[0]} ур. за {el[2]*int(text[1])}$')
-                elif int(text[0]) == el[0] and stats[0] < el[2]*int(text[1]):
+                elif int(text[0]) == el[0] and user[1] < el[2]*int(text[1]):
                     await message.answer('❌ У вас не достаточно средств!')
-                elif int(text[0]) == el[0] and stats[2]+int(text[1]) > stats[1]*5:
+                elif int(text[0]) == el[0] and user[3]+int(text[1]) > user[2]*5:
                     await message.answer('❌ У вас не хватает места. Чтобы увеличить количество мест улучшите комнату!')
-                elif int(text[0]) == el[0] and stats[1] < int(text[0]):
+                elif int(text[0]) == el[0] and user[2] < int(text[0]):
                     await message.answer('❌ Этот компьютер вам не доступен!')
         else:
             await message.answer('⚠ Команду надо использовать в формате:\n /buy_(уровень компьютера*) (количество)')

@@ -18,17 +18,16 @@ async def cb_shop_pc(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, room FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_shop_pc')
-        room = await conn.fetchval('SELECT room FROM stats WHERE userid = $1', callback.from_user.id)
         num = 0
         text = '🖥️ Доступные компьютеры:\n\n'
         for pc in reversed(prices):
-            if room >= pc[0] and num <= 5:
+            if user[1] >= pc[0] and num <= 5:
                 text += f'Компьютер {pc[0]} ур. Доход: {pc[1]}$ / 10 мин.\nЦена: {pc[2]}$ Купить: /buy_{pc[0]}\n\n'
                 num += 1
         text += f'🛒 Купить компьютер:\n/buy_(уровень компьютера*) (количество)'
@@ -68,13 +67,12 @@ async def cb_buy_ad(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, bal FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_buy_ad')
-        stats = await conn.fetchrow('SELECT bal FROM stats WHERE userid = $1', callback.from_user.id)
         user_ad = await conn.fetchrow('SELECT * FROM ads WHERE userid = $1 ORDER BY dt DESC LIMIT 1', callback.from_user.id)
         success = 0
         for ad in ads:
@@ -85,7 +83,7 @@ async def cb_buy_ad(callback: CallbackQuery):
             return
         for ad in ads:
             if ad[0] == int(callback.data[6]):
-                if stats[0] >= ad[2]:
+                if user[1] >= ad[2]:
                     await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', ad[2], callback.from_user.id)
                     await conn.execute('INSERT INTO ads (userid, percent, num) VALUES ($1, $2, $3)', callback.from_user.id, ad[3], ad[0])
                     await callback.message.edit_text(f'✅ Вы успешно купили рекламу {ad[1]}')
@@ -98,13 +96,12 @@ async def cb_shop_room(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, room FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_shop_room')
-        stats = await conn.fetchrow('SELECT * FROM stats WHERE userid = $1', callback.from_user.id)
         markup1 = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='⏫ Улучшить', callback_data=f'update_room_{callback.from_user.id}')],
             [InlineKeyboardButton(text='🔙 Назад', callback_data=f'shop_{callback.from_user.id}')]
@@ -113,11 +110,11 @@ async def cb_shop_room(callback: CallbackQuery):
             [InlineKeyboardButton(text='🔙 Назад', callback_data=f'shop_{callback.from_user.id}')]
         ])
         for el in update:
-            if stats[2]+1 == el[0]:
-                await callback.message.edit_text(f'Уровень вашей комнаты: {stats[2]}\nМинимальный доход для улучшения: {el[2]}$\nЦена улучшения: {el[1]}$', reply_markup=markup1)
+            if user[1]+1 == el[0]:
+                await callback.message.edit_text(f'Уровень вашей комнаты: {user[1]}\nМинимальный доход для улучшения: {el[2]}$\nЦена улучшения: {el[1]}$', reply_markup=markup1)
                 return
-        if stats[2] == 50:
-            await callback.message.edit_text(f'Уровень вашей комнаты: {stats[2]}\n❇️ Максимальный!', reply_markup=markup2)
+        if user[1] == 50:
+            await callback.message.edit_text(f'Уровень вашей комнаты: {user[1]}\n❇️ Максимальный!', reply_markup=markup2)
 
 
 @cb_economy_router.callback_query(F.data.startswith('shop_upgrade'))
@@ -125,22 +122,21 @@ async def cb_shop_upgrade(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, upgrade_Internet, upgrade_devices, upgrade_interior, upgrade_minibar, upgrade_service FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_shop_upgrade')
-        stats = await conn.fetchrow('SELECT upgrade_Internet, upgrade_devices, upgrade_interior, upgrade_minibar, upgrade_service FROM stats WHERE userid = $1', callback.from_user.id)
         text = '🔧 Улучшения:'
-        els = [[0, 'Интернет', 'upgrade_Internet'],
-               [1, 'Девайсы', 'upgrade_devices'],
-               [2, 'Интерьер', 'upgrade_interior'],
-               [3, 'Мини-бар', 'upgrade_minibar'],
-               [4, 'Сервис', 'upgrade_service']
+        els = [[1, 'Интернет', 'upgrade_Internet'],
+               [2, 'Девайсы', 'upgrade_devices'],
+               [3, 'Интерьер', 'upgrade_interior'],
+               [4, 'Мини-бар', 'upgrade_minibar'],
+               [5, 'Сервис', 'upgrade_service']
         ]
         for el in els:
-            el.append(stats[el[0]])
+            el.append(user[el[0]])
         for el in els:
             for upg in upgrade:
                 if el[3]+1 == upg[0]:
@@ -159,29 +155,28 @@ async def cb_update_room(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, room, bal, income FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_update_room')
-        stats = await conn.fetchrow('SELECT room, bal, income FROM stats WHERE userid = $1', callback.from_user.id)
         for el in update:
-            b = Decimal(str(stats[1]))
-            if stats[1] >= el[1] and stats[0]+1 == el[0] and stats[2] >= el[2]:
-                await conn.execute('UPDATE stats SET bal = $1, room = $2 WHERE userid = $3', b-el[1], stats[0]+1, callback.from_user.id)
+            b = Decimal(str(user[2]))
+            if user[2] >= el[1] and user[1]+1 == el[0] and user[3] >= el[2]:
+                await conn.execute('UPDATE stats SET bal = bal - $1, room = room + 1 WHERE userid = $2', el[1], callback.from_user.id)
                 await callback.message.edit_text('✅ Вы успешно прокачали комнату')
                 if el[0] == 2:
                     ref = await conn.fetchval('SELECT ref FROM stats WHERE userid = $1', callback.from_user.id)
                     if ref != None and ref > 0:
                         prem = await conn.fetchval('SELECT premium FROM stats WHERE userid = $1', ref)
                         if prem > datetime.datetime.today():
-                            await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', prem + datetime.timedelta(hours=12), ref)
+                            await conn.execute('UPDATE stats SET premium = premium + $1 WHERE userid = $2', datetime.timedelta(hours=12), ref)
                         else:
-                            await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', datetime.datetime.today() + datetime.timedelta(hours=12), ref)
-            elif stats[1] < el[1] and stats[0]+1 == el[0]:
+                            await conn.execute('UPDATE stats SET premium = NOW() + $1 WHERE userid = $2', datetime.timedelta(hours=12), ref)
+            elif user[2] < el[1] and user[1]+1 == el[0]:
                 await callback.message.edit_text('❌ У вас не хватает $')
-            elif stats[2] < el[2] and stats[0]+1 == el[0]:
+            elif user[3] < el[2] and user[1]+1 == el[0]:
                 await callback.message.edit_text(f'❌ У вас недостаточно дохода, нужно: {el[2]}')
     
 
@@ -190,18 +185,15 @@ async def cb_bonus(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, bonus, bal, income, all_wallet, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_bonus')
-        stats = await conn.fetchrow('SELECT bonus, bal, income, all_wallet, network FROM stats WHERE userid = $1', callback.from_user.id)
-        income = await conn.fetchrow('SELECT income FROM networks WHERE owner_id = $1', stats[4])
-        if stats[0] == 1:
-            b = Decimal(str(stats[1]))
-            i = Decimal(str(stats[2]))
-            a = Decimal(str(stats[3]))
+        income = await conn.fetchrow('SELECT income FROM networks WHERE owner_id = $1', user[5])
+        i = Decimal(str(user[3]))
+        if user[1] == 1:
             x = 5
             percent = randint(1, 100)
             if percent <= 5:
@@ -215,20 +207,14 @@ async def cb_bonus(callback: CallbackQuery):
             total = i * x * 6
             if total <= 150000:
                 if income != None:
-                    n_i = Decimal(str(income[0]))
-                    await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', n_i+total, stats[4])
-                await conn.execute('UPDATE stats SET bonus = 0 WHERE userid = $1', callback.from_user.id)
-                await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+total, callback.from_user.id)
-                await conn.execute('UPDATE stats SET all_wallet = $1 WHERE userid = $2', a+total, callback.from_user.id)
+                    await conn.execute('UPDATE networks SET income = income + $1 WHERE owner_id = $2', total, user[5])
+                await conn.execute('UPDATE stats SET bonus = 0, bal = bal + $1, all_wallet = all_wallet + $1 WHERE userid = $2', total, callback.from_user.id)
                 await callback.message.edit_text(f'✨ Вы успешно получили {total}$')
             else:
                 total = 150000
                 if income != None:
-                    n_i = Decimal(str(income[0]))
-                    await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', n_i+total, stats[4])
-                await conn.execute('UPDATE stats SET bonus = 0 WHERE userid = $1', callback.from_user.id)
-                await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+total, callback.from_user.id)
-                await conn.execute('UPDATE stats SET all_wallet = $1 WHERE userid = $2', a+total, callback.from_user.id)
+                    await conn.execute('UPDATE networks SET income = income + $1 WHERE owner_id = $2', total, user[5])
+                await conn.execute('UPDATE stats SET bonus = 0, bal = bal + $1, all_wallet = all_wallet + $1 WHERE userid = $2', total, callback.from_user.id)
                 await callback.message.edit_text(f'✨ Вы успешно получили {total}$')
         else:
             await callback.message.edit_text('🕛 Ежедневный бонус ещё не доступен, он обновляется каждый день в 00:00 по МСК')

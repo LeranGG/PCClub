@@ -50,24 +50,22 @@ async def cmd_casino_chat(message: Message):
 async def cmd_game1_chat(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_game1_chat')
         command = message.text[1:].split(' ')
-        bal = await conn.fetchval('SELECT bal FROM stats WHERE userid = $1', message.from_user.id)
-        b = Decimal(str(bal))
         if len(command) == 3 and command[2].isdigit() and command[1].lower() in ['орел', 'решка', 'орёл']:
             if int(command[2]) >= 5000:
-                if int(command[2]) <= bal:
+                if int(command[2]) <= user[1]:
                     value = randint(1, 100)
                     if value <= 49:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+int(command[2]), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', int(command[2]), message.from_user.id)
                         await message.answer(f'🎊 Вы угадали и получаете {int(command[2])*2}$')
                     else:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b-int(command[2]), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', int(command[2]), message.from_user.id)
                         await message.answer(f'💥 Вы не угадали и теряете {command[2]}$')
                 else:
                     await message.answer('❌ У вас не хватает $')
@@ -81,26 +79,24 @@ async def cmd_game1_chat(message: Message):
 async def cmd_game2_chat(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_game2_chat')
         command = message.text[1:].split(' ')
-        bal = await conn.fetchval('SELECT bal FROM stats WHERE userid = $1', message.from_user.id)
-        b = Decimal(str(bal))
         if command[1].isdigit() and int(command[1]) in [1, 2, 3, 4, 5, 6] and command[2].isdigit():
             if int(command[2]) >= 5000:
-                if int(command[2]) <= bal:
+                if int(command[2]) <= user[1]:
                     sent_dice = await message.answer_dice(emoji='🎲')
                     await asyncio.sleep(3)
                     dice_value = sent_dice.dice.value
                     if dice_value == int(command[1]):
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+int(command[2])*5, message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', int(command[2])*5, message.from_user.id)
                         await message.answer(f'🎊 Вы угадали и получаете {int(command[2])*6}$')
                     else:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b-int(command[2]), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', int(command[2]), message.from_user.id)
                         await message.answer(f'💥 Вы не угадали и теряете {command[2]}$')
                 else:
                     await message.answer('❌ У вас не хватает $')

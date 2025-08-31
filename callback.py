@@ -36,7 +36,7 @@ async def cb_chats_num(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, name FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
@@ -71,8 +71,7 @@ async def cb_chats_num(callback: CallbackQuery):
                 ])
             user = chats[num-1][1]
             user.remove(callback.from_user.id)
-            user = await conn.fetchrow('SELECT name, userid FROM stats WHERE userid = $1', user[0])
-            await callback.message.answer(f'📬 Выберите чат:\n\n[{user[0]}](tg://user?id={user[1]})', reply_markup=markup, parse_mode='markdown')
+            await callback.message.answer(f'📬 Выберите чат:\n\n[{user[1]}](tg://user?id={user[0]})', reply_markup=markup, parse_mode='markdown')
         else:
             await callback.message.answer('📬 У вас пока нет активных чатов')
 
@@ -82,7 +81,7 @@ async def cb_chat(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, name FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
@@ -110,8 +109,7 @@ async def cb_chat(callback: CallbackQuery):
                  InlineKeyboardButton(text=f'{num}', callback_data=f'{num}'),
                  InlineKeyboardButton(text=f'➡️', callback_data=f'chat_{callback.data.split('_')[1]}_{num+1}_{callback.from_user.id}')]
             ])
-        user = await conn.fetchrow('SELECT name, userid FROM stats WHERE userid = $1', messages[num-1][0])
-        await callback.message.answer(f'{user[0]}: {messages[num-1][1]}\n\nДата отправки: {messages[num-1][2].strftime('%H:%M:%S %d.%m.%Y')}', reply_markup=markup)
+        await callback.message.answer(f'{user[1]}: {messages[num-1][1]}\n\nДата отправки: {messages[num-1][2].strftime('%H:%M:%S %d.%m.%Y')}', reply_markup=markup)
 
 
 @callback_router.callback_query(F.data.startswith('cancel'))
@@ -159,16 +157,16 @@ async def cb_success(callback: CallbackQuery):
             if not callback.from_user.id in title:
                 await conn.execute('UPDATE titles SET users = array_append(users, $1) WHERE id = $2', callback.from_user.id, 'first_donate')
             if stats[0] > datetime.datetime.today():
-                await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', stats[0] + datetime.timedelta(days=days), callback.from_user.id)
+                await conn.execute('UPDATE stats SET premium = premium + $1 WHERE userid = $2', datetime.timedelta(days=days), callback.from_user.id)
             else:
-                await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', datetime.datetime.today() + datetime.timedelta(days=days), callback.from_user.id)
+                await conn.execute('UPDATE stats SET premium = NOW() + $1 WHERE userid = $2', datetime.timedelta(days=days), callback.from_user.id)
             await conn.execute('UPDATE orders SET success = 1 WHERE label = $1', labels)
             if stats[1] != None:
                 prem = await conn.fetchval('SELECT premium FROM stats WHERE userid = $1', stats[1])
                 if prem > datetime.datetime.today():
-                    await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', prem + datetime.timedelta(days=days/4), stats[1])
+                    await conn.execute('UPDATE stats SET premium = premium + $1 WHERE userid = $2', datetime.timedelta(days=days/4), stats[1])
                 else:
-                    await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', datetime.datetime.today() + datetime.timedelta(days=days/4), stats[1])
+                    await conn.execute('UPDATE stats SET premium = NOW() + $1 WHERE userid = $2', datetime.timedelta(days=days/4), stats[1])
             await callback.message.edit_text('✅ Оплата прошла успешно. Премиум зачислен на твой аккаунт!')
         else:
             await callback.message.edit_text('❌ Не оплачено')
@@ -179,14 +177,13 @@ async def cb_activate_ticket_success(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, tickets FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_activate_ticket_success')
-        tickets = await conn.fetchval('SELECT tickets FROM stats WHERE userid = $1', callback.from_user.id)
-        if tickets != 0:
+        if user[1] != 0:
             await callback.message.edit_text('✅ Вы успешно активировали билет удвоения')
             await conn.execute('UPDATE stats SET active_ticket = True, tickets = tickets - 1 WHERE userid = $1', callback.from_user.id)
         else:
@@ -198,19 +195,18 @@ async def cb_activate_ticket(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, tickets FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_activate_ticket')
-        tickets = await conn.fetchval('SELECT tickets FROM stats WHERE userid = $1', callback.from_user.id)
-        if tickets != 0:
+        if user[1] != 0:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='✅ Активировать', callback_data=f'activate_ticket_success_{callback.from_user.id}')],
                 [InlineKeyboardButton(text='❌ Отмена', callback_data=f'cancel_{callback.from_user.id}')]
             ])
-            await callback.message.edit_text(f'ℹ️ Билеты удваивают любой купленный вами донат.\n\nВы уверены что хотите активировать билет? У вас есть {tickets} билетов\n\n‼️ Активированные билеты не суммируются',
+            await callback.message.edit_text(f'ℹ️ Билеты удваивают любой купленный вами донат.\n\nВы уверены что хотите активировать билет? У вас есть {user[1]} билетов\n\n‼️ Активированные билеты не суммируются',
                                              reply_markup=markup)
         else:
             await callback.message.edit_text('⚠️ У вас нету билетов удвоения')

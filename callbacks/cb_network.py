@@ -16,23 +16,22 @@ async def cb_network_members(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_members')
-        network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        members = await conn.fetch('SELECT name, userid, net_inc FROM stats WHERE network = $1 ORDER BY net_inc DESC', network)
+        members = await conn.fetch('SELECT name, userid, net_inc FROM stats WHERE network = $1 ORDER BY net_inc DESC', user[1])
         num = int(callback.data.split('_')[-2])
         text = '👥 Все клубы-участники франшизы'
         number = 1
-        admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', network)
+        admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
         for user in members[5*(num-1):5*(num)]:
             text += f'\n{number}. <a href="tg://user?id={user[1]}">{user[0]}</a> ID: {user[1]} Доход: {user[2]}$'
             if user[1] in admins:
                 text += ' (админ.)'
-            elif user[1] == network:
+            elif user[1] == user[1]:
                 text += ' (владелец)'
             number += 1
             if len(members) < 4:
@@ -63,7 +62,7 @@ async def cb_network_members(callback: CallbackQuery):
         text += '\nИсключить игрока - /delete_user'
         text += '\nЗабанить игрока /ban_user'
         text += '\nРазбанить игрока /reban_user'
-        if callback.from_user.id == network:
+        if callback.from_user.id == user[1]:
             text += '\nВыдать админку /set_admin'
             text += '\nСнять админку /delete_admin'
         text += '\n‼️ Команды надо вводить в формате:\n/(команда) (id игрока)'
@@ -117,8 +116,6 @@ async def cb_network_edit_description(callback: CallbackQuery, state: FSMContext
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_edit_description')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        network = await conn.fetchrow('SELECT * FROM networks WHERE owner_id = $1', network[0])
         await callback.message.edit_text('📝 Введите новое описание для франшизы\nВведите /cancel для отмены действия')
         await state.set_state(Network_edit.desc)
 
@@ -128,13 +125,12 @@ async def cb_network_type(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_type')
-        network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
         net_type = callback.data.split('_')[-2]
         if net_type == 'open':
             net_type2 = 'Открытая'
@@ -142,7 +138,7 @@ async def cb_network_type(callback: CallbackQuery):
             net_type2 = 'Закрытая'
         elif net_type == 'request':
             net_type2 = 'По заявке'
-        await conn.execute('UPDATE networks SET type = $1 WHERE owner_id = $2', net_type, network)
+        await conn.execute('UPDATE networks SET type = $1 WHERE owner_id = $2', net_type, user[1])
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='🔙 Назад', callback_data=f'network_{callback.from_user.id}')]
         ])
@@ -160,8 +156,6 @@ async def cb_network_edit_type(callback: CallbackQuery):
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_edit_type')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        network = await conn.fetchrow('SELECT * FROM networks WHERE owner_id = $1', network[0])
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='🔓 Открытая', callback_data=f'network_type_open_{callback.from_user.id}')],
             [InlineKeyboardButton(text='🔒 Закрытая', callback_data=f'network_type_close_{callback.from_user.id}')],
@@ -175,17 +169,15 @@ async def cb_network_mailing(callback: CallbackQuery, state: FSMContext):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_mailing')
-        network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', network)
-        mailing = await conn.fetchval('SELECT mailing FROM networks WHERE owner_id = $1', network)
-        if callback.from_user.id in admins or callback.from_user.id == network:
-            if mailing + datetime.timedelta(hours=1) <= datetime.datetime.today():
+        network = await conn.fetchrow('SELECT admins, mailing FROM networks WHERE owner_id = $1', userid[1])
+        if callback.from_user.id in network[0] or callback.from_user.id == userid[1]:
+            if network[1] + datetime.timedelta(hours=1) <= datetime.datetime.today():
                 await callback.message.edit_text('✉️ Введите текст для рассылки или /cancel для отмены действия')
                 await state.set_state(Network_mailing.text)
             else:
@@ -205,8 +197,6 @@ async def cb_network_edit(callback: CallbackQuery):
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_edit')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        network = await conn.fetchrow('SELECT * FROM networks WHERE owner_id = $1', network[0])
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='🪧 Название', callback_data=f'network_edit_name_{callback.from_user.id}')],
             [InlineKeyboardButton(text='💬 Описание', callback_data=f'network_edit_description_{callback.from_user.id}')],
@@ -231,11 +221,9 @@ async def cb_network_delete_success(callback: CallbackQuery):
         users = await conn.fetch('SELECT userid FROM stats WHERE network = $1', callback.from_user.id)
         if len(users) > 1:
             for user in users:
-                await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, user[0])
-                await conn.execute('UPDATE stats SET net_inc = $1 WHERE userid = $2', 0, user[0])
+                await conn.execute('UPDATE stats SET network = $1, net_inc = $2 WHERE userid = $3', None, 0, user[0])
         else:
-            await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, callback.from_user.id)
-            await conn.execute('UPDATE stats SET net_inc = $1 WHERE userid = $2', 0, callback.from_user.id)
+            await conn.execute('UPDATE stats SET network = $1, net_inc = $2 WHERE userid = $3', None, 0, callback.from_user.id)
         await callback.message.edit_text('✅ Франшиза удалена!')
 
 
@@ -262,17 +250,15 @@ async def cb_network_left_success(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, net_inc, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_left_success')
-        info = await conn.fetchrow('SELECT net_inc, network FROM stats WHERE userid = $1', callback.from_user.id)
-        income = await conn.fetchval('SELECT income FROM networks WHERE owner_id = $1', info[1])
-        await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, callback.from_user.id)
-        await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', income-info[0], callback.from_user.id)
-        await conn.execute('UPDATE stats SET net_inc = $1 WHERE userid = $2', 0, callback.from_user.id)
+        income = await conn.fetchval('SELECT income FROM networks WHERE owner_id = $1', user[2])
+        await conn.execute('UPDATE stats SET network = NULL, net_inc = 0 WHERE userid = $2', callback.from_user.id)
+        await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', income-user[1], callback.from_user.id)
         await callback.message.edit_text('↩️ Вы покинули франшизу!')
 
 
@@ -299,17 +285,16 @@ async def cb_network_create(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_create')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        if network[0] is None:
-                await conn.execute('INSERT INTO networks (owner_id) VALUES ($1)', callback.from_user.id)
-                await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', callback.from_user.id, callback.from_user.id)
-                await callback.message.edit_text('✅ Вы успешно создали франшизу')
+        if user[1] is None:
+            await conn.execute('INSERT INTO networks (owner_id) VALUES ($1)', callback.from_user.id)
+            await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', callback.from_user.id, callback.from_user.id)
+            await callback.message.edit_text('✅ Вы успешно создали франшизу')
         else:
             await callback.message.edit_text('🫸 Вы уже состоите в франшизе')
 
@@ -319,14 +304,13 @@ async def cb_network_search_id(callback: CallbackQuery, state: FSMContext):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_search_id')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        if network[0] is None:
+        if user[1] is None:
             await callback.message.edit_text('🆔 Введите ID или точное название франшизы в которую хотите вступить\nВведите /cancel для отмены действия')
             await state.set_state(Network_search.id)
         else:
@@ -338,14 +322,13 @@ async def cb_network_search_num(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_search_num')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        if network[0] is None:
+        if user[1] is None:
             franchises = await conn.fetch('SELECT owner_id, name, description, income FROM networks WHERE type != $1 ORDER BY income DESC', 'close')
             if len(franchises) != 0:
                 num = int(callback.data.split('_')[-2])
@@ -421,15 +404,14 @@ async def cb_network_join(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_join')
         data = callback.data.split('_')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        if network[0] is None:
+        if user[1] is None:
             info = await conn.fetchrow('SELECT type, requests, ban_users FROM networks WHERE owner_id = $1', int(data[2]))
             if not callback.from_user.id in info[2]:
                 if info[0] == 'open':
@@ -451,21 +433,20 @@ async def cb_network(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network')
-        network = await conn.fetchrow('SELECT network FROM stats WHERE userid = $1', callback.from_user.id)
-        if network[0] is None:
+        if user[1] is None:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='🆕 Создать новую франшизу', callback_data=f'network_create_{callback.from_user.id}')],
                 [InlineKeyboardButton(text='🤝 Вступить в франшизу', callback_data=f'network_search_{callback.from_user.id}')]
             ])
             await callback.message.edit_text('🌐 Вы не состоите в франшизе', reply_markup=markup)
         else:
-            network = await conn.fetchrow('SELECT name, owner_id, description, income, type, admins FROM networks WHERE owner_id = $1', network[0])
+            network = await conn.fetchrow('SELECT name, owner_id, description, income, type, admins FROM networks WHERE owner_id = $1', user[1])
             if network[4] == 'request':
                 markup1 = InlineKeyboardMarkup(inline_keyboard=[
                     [InlineKeyboardButton(text='✏️ Изменить франшизу', callback_data=f'network_edit_{callback.from_user.id}')],

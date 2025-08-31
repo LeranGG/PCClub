@@ -107,14 +107,13 @@ async def Network_mailing_text(message: Message, state: FSMContext):
     await state.clear()
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, network FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'Network_mailing_text')
-        network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', message.from_user.id)
-        members = await conn.fetch('SELECT userid FROM stats WHERE network = $1 AND userid != $1', network)
+        members = await conn.fetch('SELECT userid FROM stats WHERE network = $1 AND userid != $1', user[1])
         for member in members:
             try:
                 await bot.send_message(member[0], f'📥 Вам пришла рассылка от владельца франшизы: {message.text}')
@@ -130,17 +129,16 @@ async def Network_name(message: Message, state: FSMContext):
         await state.clear()
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+            user = await conn.fetchrow('SELECT name, network FROM stats WHERE userid = $1', message.from_user.id)
             if user is None:
                 await message.answer('Сначала зарегистрируйтесь - /start')
                 return
             await update_data(message.from_user.username, message.from_user.id)
             await add_action(message.from_user.id, 'Network_name')
-            network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', message.from_user.id)
             if bool(re.fullmatch(r"[а-яА-Яa-zA-Z0-9]+", message.text)) == True:
                 name = await conn.fetchrow('SELECT * FROM networks WHERE name = $1', message.text)
                 if name is None:
-                    await conn.execute('UPDATE networks SET name = $1 WHERE owner_id = $2', message.text, network)
+                    await conn.execute('UPDATE networks SET name = $1 WHERE owner_id = $2', message.text, user[1])
                     markup = InlineKeyboardMarkup(inline_keyboard=[
                         [InlineKeyboardButton(text='🔙 Назад', callback_data=f'network_{message.from_user.id}')]
                     ])
@@ -159,14 +157,13 @@ async def Network_desc(message: Message, state: FSMContext):
         await state.clear()
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+            user = await conn.fetchrow('SELECT name, network FROM stats WHERE userid = $1', message.from_user.id)
             if user is None:
                 await message.answer('Сначала зарегистрируйтесь - /start')
                 return
             await update_data(message.from_user.username, message.from_user.id)
             await add_action(message.from_user.id, 'Network_desc')
-            network = await conn.fetchval('SELECT network FROM stats WHERE userid = $1', message.from_user.id)
-            await conn.execute('UPDATE networks SET description = $1 WHERE owner_id = $2', message.text, network)
+            await conn.execute('UPDATE networks SET description = $1 WHERE owner_id = $2', message.text, user[1])
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text='🔙 Назад', callback_data=f'network_{message.from_user.id}')]
             ])
@@ -198,23 +195,21 @@ async def Game1_amount(message: Message, state: FSMContext):
     await state.clear()
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'Game1_amount')
-        bal = await conn.fetchval('SELECT bal FROM stats WHERE userid = $1', message.from_user.id)
-        b = Decimal(str(bal))
         if message.text.isdigit():
             if int(message.text) >= 5000:
-                if int(message.text) <= bal:
+                if int(message.text) <= user[1]:
                     value = randint(1, 100)
                     if value <= 49:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+int(message.text), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', int(message.text), message.from_user.id)
                         await message.answer(f'🎊 Вы угадали и получаете {int(message.text)*2}$')
                     else:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b-int(message.text), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', int(message.text), message.from_user.id)
                         await message.answer(f'💥 Вы не угадали и теряете {message.text}$')
                 else:
                     await message.answer('❌ У вас не хватает $')
@@ -246,25 +241,23 @@ async def Game2_bet(message: Message, state: FSMContext):
 async def Game2_amount(message: Message, state: FSMContext):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'Game2_amount')
-        bal = await conn.fetchval('SELECT bal FROM stats WHERE userid = $1', message.from_user.id)
-        b = Decimal(str(bal))
         if message.text.isdigit():
             if int(message.text) >= 5000:
-                if int(message.text) <= bal:
+                if int(message.text) <= user[1]:
                     sent_dice = await message.answer_dice(emoji='🎲')
                     await asyncio.sleep(3)
                     data = await state.get_data()
                     if sent_dice.dice.value == data.get('bet'):
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b+int(message.text)*5, message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', int(message.text)*5, message.from_user.id)
                         await message.answer(f'🎊 Вы угадали и получаете {int(message.text)*6}$')
                     else:
-                        await conn.execute('UPDATE stats SET bal = $1 WHERE userid = $2', b-int(message.text), message.from_user.id)
+                        await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', int(message.text), message.from_user.id)
                         await message.answer(f'💥 Вы не угадали и теряете {message.text}$')
                 else:
                     await message.answer('❌ У вас не хватает $')

@@ -35,14 +35,15 @@ routers = [
 
 async def every_10_min():
     while True:
+        await asyncio.sleep(600)
         pool = await get_db_pool()
         async with pool.acquire() as conn:
-            users = await conn.fetch('SELECT userid, bal, income, network, all_wallet, premium, net_inc, taxes, room, max_bal FROM stats')
+            users = await conn.fetch('SELECT userid, bal, income, network, all_wallet, premium, taxes, room, max_bal FROM stats')
             for user in users:
                 for taxe in taxes:
-                    if user[8] == taxe[0] and user[7] >= taxe[1]:
+                    if user[7] == taxe[0] and user[6] >= taxe[1]:
                         pass
-                    elif user[8] == taxe[0] and user[7] < taxe[1]:
+                    elif user[7] == taxe[0] and user[6] < taxe[1]:
                         bufs = await conn.fetchrow('SELECT upgrade_Internet, upgrade_devices, upgrade_interior, upgrade_minibar, upgrade_service FROM stats WHERE userid = $1', user[0])
                         user_ad = await conn.fetchrow('SELECT * FROM ads WHERE userid = $1 ORDER BY dt DESC LIMIT 1', user[0])
                         i = user[2]
@@ -63,14 +64,13 @@ async def every_10_min():
                         if user[0] in ADMIN and TOKEN != '7391256097:AAGVbvFUMW5ShfffjsPFFvFl9QONZ2kJbu8':
                             admin = i/100*5
                         i = i + admin + prem + summ + ad_inc
-                        await conn.execute('UPDATE stats SET bal = $1, all_wallet = $2, taxes = $3 WHERE userid = $4', i+user[1], i+user[4], user[7]+i/100*5, user[0])
-                        if user[1]+i > user[9]:
+                        await conn.execute('UPDATE stats SET bal = bal + $1, all_wallet = all_wallet + $1, taxes = taxes + $2 WHERE userid = $3', i, i/100*5, user[0])
+                        if user[1]+i > user[8]:
                             await conn.execute('UPDATE stats SET max_bal = bal')
                         if user[3] != None:
-                            network = await conn.fetchrow('SELECT income FROM networks WHERE owner_id = $1', user[3])
-                            await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', network[0]+i, user[3])
-                            await conn.execute('UPDATE stats SET net_inc = $1 WHERE userid = $2', user[6]+i, user[0])
-        await asyncio.sleep(600)
+                            await conn.execute('UPDATE networks SET income = income + $1 WHERE owner_id = $2', i, user[3])
+                            await conn.execute('UPDATE stats SET net_inc = net_inc + $1 WHERE userid = $2', i, user[0])
+
 
 async def every_day():
     while True:
@@ -86,7 +86,7 @@ async def every_day():
 async def every_week():
     while True:
         dt = f'{datetime.datetime.today()}'
-        if dt[11:19] == '16:00:00' and datetime.datetime.today().weekday() == 6:
+        if dt[11:19] == '19:00:00' and datetime.datetime.today().weekday() == 6:
             pool = await get_db_pool()
             async with pool.acquire() as conn:
                 bal = await conn.fetch('SELECT name, income FROM networks WHERE owner_id != $1 ORDER BY income DESC LIMIT 10', ADMIN[0])

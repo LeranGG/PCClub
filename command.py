@@ -62,6 +62,7 @@ async def cmd_start(message: Message):
                     await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username} от Arizona HOT', parse_mode='markdown')
                 elif int(message.text[7:]) == ADMIN[0]:
                     await conn.execute('UPDATE stats SET premium = $1 WHERE userid = $2', datetime.datetime.today() + datetime.timedelta(days=14), message.from_user.id)
+                    await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username} от тебя)', parse_mode='markdown')
                 else:
                     await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username} от [{message.text[7:]}](tg://user?id={message.text[7:]})', parse_mode='markdown')
                 await conn.execute('UPDATE stats SET ref = $1 WHERE userid = $2', int(message.text[7:]), message.from_user.id)
@@ -100,17 +101,16 @@ async def cmd_nickname(message: Message, state: FSMContext):
 async def cmd_stats(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, all_wallet, reg_day, name, all_pcs, max_bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_stats')
-        stats = await conn.fetchrow('SELECT all_wallet, reg_day, name, all_pcs, max_bal FROM stats WHERE userid = $1', message.from_user.id)
         refs = await conn.fetchval('SELECT COUNT(*) FROM stats WHERE ref = $1', message.from_user.id)
-        date_time = str(stats[1])
+        date_time = str(user[2])
         reg_day = f'{date_time[8:10]}.{date_time[5:7]}.{date_time[0:4]}'
-        await message.answer(f'📈 Статистика игрока {stats[2]}:\n\n💵 Заработок за всё время: {stats[0]}$\n💰 Наибольший баланс за всё время: {stats[4]}\n🖥️ Куплено компьютеров за всё время: {stats[3]}\n👥 Рефералы: {refs}\n📅 Дата регистрации: {reg_day}')
+        await message.answer(f'📈 Статистика игрока {user[3]}:\n\n💵 Заработок за всё время: {user[1]}$\n💰 Наибольший баланс за всё время: {user[5]}\n🖥️ Куплено компьютеров за всё время: {user[4]}\n👥 Рефералы: {refs}\n📅 Дата регистрации: {reg_day}')
 
 
 @commands_router.message(Command('my_pcs'))
@@ -285,7 +285,7 @@ async def cmd_top_franchise(message: Message):
 async def cmd_promo(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, income FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
@@ -297,15 +297,13 @@ async def cmd_promo(message: Message):
                 if not message.from_user.id in promo[3]:
                     if promo[1] < promo[2]:
                         reward = ''
-                        i = await conn.fetchval('SELECT income FROM stats WHERE userid = $1', message.from_user.id)
                         if promo[4] == 'money':
                             reward = f'{promo[5]}$'
                             await message.answer(f'Вы успешно активировали промокод! Вы получили: {reward}')
-                            await conn.execute('UPDATE stats SET bal = bal+$1 WHERE userid = $2', promo[5], message.from_user.id)
+                            await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', promo[5], message.from_user.id)
                         elif promo[4] == 'income':
-                            reward = f'{promo[5]*i*6}$'
-                            await message.answer(f'✅ Вы успешно активировали промокод! Вы получили: {reward}')
-                            await conn.execute('UPDATE stats SET bal = bal+$1 WHERE userid = $2', promo[5]*i*6, message.from_user.id)
+                            await message.answer(f'✅ Вы успешно активировали промокод! Вы получили: {promo[5]*user[1]*6}$')
+                            await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', promo[5]*user[1]*6, message.from_user.id)
                         await conn.execute('UPDATE promos SET use = $1, users = array_append(users, $2) WHERE name = $3', promo[1]+1, message.from_user.id, promo[0])
                     else:
                         await message.answer('❌ Этот промокод уже кончился')
