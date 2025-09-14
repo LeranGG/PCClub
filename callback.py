@@ -149,11 +149,8 @@ async def cb_success(callback: CallbackQuery):
                         
         if success == 1:
             title = await conn.fetchval('SELECT users FROM titles WHERE id = $1', 'first_donate')
-            stats = await conn.fetchrow('SELECT premium, ref, active_ticket FROM stats WHERE userid = $1', callback.from_user.id)
+            stats = await conn.fetchrow('SELECT premium, ref FROM stats WHERE userid = $1', callback.from_user.id)
             days = await conn.fetchval('SELECT days FROM orders WHERE label = $1', labels)
-            if stats[2] == True:
-                days += days
-                await conn.execute('UPDATE stats SET active_ticket = False WHERE userid = $1', callback.from_user.id)
             if not callback.from_user.id in title:
                 await conn.execute('UPDATE titles SET users = array_append(users, $1) WHERE id = $2', callback.from_user.id, 'first_donate')
             if stats[0] > datetime.datetime.today():
@@ -172,44 +169,8 @@ async def cb_success(callback: CallbackQuery):
             await callback.message.edit_text('❌ Не оплачено')
 
 
-@callback_router.callback_query(F.data.startswith('activate_ticket_success'))
-async def cb_activate_ticket_success(callback: CallbackQuery):
-    pool = await get_db_pool()
-    userid = callback.data.split('_')[-1]
-    async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid, tickets FROM stats WHERE userid = $1', callback.from_user.id)
-        if user == None or user[0] != int(userid):
-            await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
-            return
-        await update_data(callback.from_user.username, callback.from_user.id)
-        await add_action(callback.from_user.id, 'cb_activate_ticket_success')
-        if user[1] != 0:
-            await callback.message.edit_text('✅ Вы успешно активировали билет удвоения')
-            await conn.execute('UPDATE stats SET active_ticket = True, tickets = tickets - 1 WHERE userid = $1', callback.from_user.id)
-        else:
-            await callback.message.edit_text('⚠️ У вас нету билетов удвоения')
 
 
-@callback_router.callback_query(F.data.startswith('activate_ticket'))
-async def cb_activate_ticket(callback: CallbackQuery):
-    pool = await get_db_pool()
-    userid = callback.data.split('_')[-1]
-    async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid, tickets FROM stats WHERE userid = $1', callback.from_user.id)
-        if user == None or user[0] != int(userid):
-            await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
-            return
-        await update_data(callback.from_user.username, callback.from_user.id)
-        await add_action(callback.from_user.id, 'cb_activate_ticket')
-        if user[1] != 0:
-            markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text='✅ Активировать', callback_data=f'activate_ticket_success_{callback.from_user.id}')],
-                [InlineKeyboardButton(text='❌ Отмена', callback_data=f'cancel_{callback.from_user.id}')]
-            ])
-            await callback.message.edit_text(f'ℹ️ Билеты удваивают любой купленный вами донат.\n\nВы уверены что хотите активировать билет? У вас есть {user[1]} билетов\n\n‼️ Активированные билеты не суммируются',
-                                             reply_markup=markup)
-        else:
-            await callback.message.edit_text('⚠️ У вас нету билетов удвоения')
 
 
 @callback_router.callback_query(F.data.startswith('donate_1day'))

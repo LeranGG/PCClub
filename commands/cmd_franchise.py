@@ -35,10 +35,36 @@ async def cmd_allow_user(message: Message):
                     if net_user == None:
                         await message.answer('✅ Вы успешно приняли заявку')
                         await bot.send_message(message.text[12:], '🎊 Вы приняты в франшизу')
-                        await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', message.from_user.id, int(message.text[12:]))
-                        await conn.execute('UPDATE networks SET requests = array_remove(requests, $1) WHERE owner_id = $2', int(message.text[12:]), message.from_user.id)
+                        await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', user[1], int(message.text[12:]))
+                        await conn.execute('UPDATE networks SET requests = array_remove(requests, $1) WHERE owner_id = $2', int(message.text[12:]), user[1])
                     else:
                         await message.answer('❌ Пользователь уже состоит в другой франшизе')
+                        await conn.execute('UPDATE networks SET requests = array_remove(requests, $1) WHERE owner_id = $2', int(message.text[12:]), user[1])
+                else:
+                    await message.answer('❌ Вы не являетесь владельцем франшизы или её администратором')
+            else:
+                await message.answer('⚠️ Этот пользователь не отправлял заявку в вашу франшизу')
+        else:
+            await message.answer('❌ Вы не состоите в франшизе')
+
+
+@cmd_franchise_router.message(Command('reject_user'))
+async def cmd_reject_user(message: Message):
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow('SELECT name, network FROM stats WHERE userid = $1', message.from_user.id)
+        if user is None:
+            await message.answer('Сначала зарегистрируйтесь - /start')
+            return
+        await update_data(message.from_user.username, message.from_user.id)
+        await add_action(message.from_user.id, 'cmd_reject_user')
+        admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
+        requests = await conn.fetchval('SELECT requests FROM networks WHERE owner_id = $1', user[1])
+        if user[1] != None:
+            if int(message.text[12:]) in requests:
+                if message.from_user.id in admins or message.from_user.id == user[1]:
+                    await message.answer('✅ Вы успешно отклонили заявку')
+                    await conn.execute('UPDATE networks SET requests = array_remove(requests, $1) WHERE owner_id = $2', int(message.text[12:]), user[1])
                 else:
                     await message.answer('❌ Вы не являетесь владельцем франшизы или её администратором')
             else:

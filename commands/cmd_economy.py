@@ -77,23 +77,27 @@ async def cmd_sell(message: Message):
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_sell')
-        text = message.text.split('@PCClub_sBOT', 1)[0]
-        text = text.split('_', 1)
+        text = message.text.split('_', 1)
         text = text[1].split(' ', 1)
+        if len(text) == 1:
+            text.append('1')
+        text[0] = text[0].split('@PCClub_sBOT')[0]
+        text[1] = text[1].split('@PCClub_sBOT')[0]
+        ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, text[0])
+        if text[1] == 'max':
+            text[1] = str(ctids)
         if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
             pcs = await conn.fetchrow('SELECT * FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
             for pc in prices:
                 if int(text[0]) == pc[0]:
                     if pcs != None:
-                        if len(text) == 1:
-                            text.append('1')
                         ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2 LIMIT $3', message.from_user.id, pc[0], int(text[1]))
                         if len(ctids) == int(text[1]):
                             inc = 0
                             for ctid in ctids:
                                 comp = Decimal(str(pc[1]))
                                 await conn.execute('DELETE FROM pc WHERE ctid = $1', ctid[0])
-                                await conn.execute('UPDATE stats SET bal = bal + $1, income = income - $2, pc = pc - 1 WHERE userid = $4', pc[2]//2, comp, message.from_user.id)
+                                await conn.execute('UPDATE stats SET bal = bal + $1, income = income - $2, pc = pc - 1 WHERE userid = $3', pc[2]//2, comp, message.from_user.id)
                                 inc += pc[2]//2
                             await message.answer(f'✅ Вы успешно продали x{text[1]} Компьютер {pc[0]} ур. за {inc}$')
                         else:
@@ -116,11 +120,17 @@ async def cmd_buy(message: Message):
         await add_action(message.from_user.id, 'cmd_buy')
         text = message.text.split('_', 1)
         text = text[1].split(' ', 1)
+        if len(text) == 1:
+            text.append('1')
         text[0] = text[0].split('@PCClub_sBOT')[0]
+        text[1] = text[1].split('@PCClub_sBOT')[0]
+        if text[1] == 'max':
+            text[1] = user[2]*5 - user[3]
+            while user[1] < prices[int(int(text[0])-1)][2]*int(text[1]):
+                text[1] -= 1
+            text[1] = str(text[1])
         if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
             for el in prices:
-                if len(text) == 1:
-                    text.append('1')
                 if int(text[0]) == el[0] and user[1] >= el[2]*int(text[1]) and user[3]+int(text[1]) <= user[2]*5 and user[2] >= int(text[0]):
                     pc_inc = Decimal(str(el[1]))
                     await conn.execute('UPDATE stats SET bal = bal - $1, pc = pc + $2, income = income + $3, all_pcs = all_pcs + $4 WHERE userid = $5', el[2]*int(text[1]), int(text[1]), pc_inc*int(text[1]), int(text[1]), message.from_user.id)

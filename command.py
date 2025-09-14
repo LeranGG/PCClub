@@ -66,7 +66,6 @@ async def cmd_start(message: Message):
                 else:
                     await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username} от [{message.text[7:]}](tg://user?id={message.text[7:]})', parse_mode='markdown')
                 await conn.execute('UPDATE stats SET ref = $1 WHERE userid = $2', int(message.text[7:]), message.from_user.id)
-                await conn.execute('UPDATE stats SET tickets = tickets + 1 WHERE userid = $1', int(message.text[7:]))
             else:
                 await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username}', parse_mode='markdown')
         await update_data(message.from_user.username, message.from_user.id)
@@ -157,7 +156,9 @@ async def cmd_my_ad(message: Message):
                 elif user_ad[1] == ad[0] and user_ad[3] + datetime.timedelta(hours=ad[4]) < datetime.datetime.today():
                     await message.answer(f'⏳ В данный момент у вас нет активной рекламы, но вам нужно подождать до {str(user_ad[3] + datetime.timedelta(hours=ad[4]+ad[5]))[:19]} по МСК, так как вы недавно уже брали рекламу')
                 elif user_ad[1] == ad[0]:
-                    await message.answer(f'📢 Это ваша реклама:\n\n{ad[1]} +{ad[3]}% к доходу\nАктивна до {str(user_ad[3] + datetime.timedelta(hours=ad[4]+ad[5]))[:19]} по МСК')
+                    end_time = user_ad[3] + datetime.timedelta(hours=ad[4] + ad[5])
+                    formatted_time = end_time.strftime("%H:%M %d.%m.%Y")
+                    await message.answer(f'📢 Это ваша реклама:\n\n{ad[1]} +{ad[3]}% к доходу\nАктивна до {formatted_time} по МСК')
 
 
 @commands_router.message(Command('ref'))
@@ -175,8 +176,7 @@ async def cmd_ref(message: Message):
         await message.answer(f'👤 Твоя реферальная ссылка: https://t.me/PCClub_sBOT?start={message.from_user.id}\n\n'
                              'Отправляй её друзьями и получай бонус за каждого, кто зайдет по ней в бота и достигнет 2 уровня комнаты\n\n'
                              f'Количество твоих рефералов: {refs}\n\n'
-                             'Бонус за игрока: 12 часов 👑 PREMIUM 👑, а также 25% от всех купленных рефералом донатов\n'
-                             'Пока идет ивент, за каждого реферала вы получите билет-удвоитель, сразу как только он запустит игру', disable_web_page_preview=True)
+                             'Бонус за игрока: 12 часов 👑 PREMIUM 👑, а также 25% от всех купленных рефералом донатов', disable_web_page_preview=True)
 
 
 @commands_router.message(Command('donate'))
@@ -192,8 +192,7 @@ async def cmd_donate(message: Message):
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text='1 день PREMIUM', callback_data=f'donate_1day_{message.from_user.id}')],
             [InlineKeyboardButton(text='1 неделя PREMIUM', callback_data=f'donate_1week_{message.from_user.id}')],
-            [InlineKeyboardButton(text='1 месяц PREMIUM', callback_data=f'donate_1month_{message.from_user.id}')],
-            [InlineKeyboardButton(text='🧧 Удвоители', callback_data=f'activate_ticket_{message.from_user.id}')]
+            [InlineKeyboardButton(text='1 месяц PREMIUM', callback_data=f'donate_1month_{message.from_user.id}')]
         ])
         await message.answer('Покупка 👑 PREMIUM 👑\n\n'
                              '🌟 Бонусы:\n'
@@ -277,7 +276,7 @@ async def cmd_top_franchise(message: Message):
         for user in bal:
             text += f'\n{num}) {user[0]} - {user[1]}$'
             num += 1
-        text += '\n\n❗ Топ 5 и 2 случайных игрока из топ 5 франшиз получат PREMIUM после сброса доходов франшиз, в понедельник, в 00:00 по МСК ❗'
+        text += '\n\n❗ Топ 5 и 2 случайных игрока из топ 5 франшиз получат PREMIUM после сброса доходов франшиз, в воскресенье, в 19:00 по МСК ❗'
         await message.answer(text)
 
 
@@ -319,7 +318,7 @@ async def cmd_promo(message: Message):
 async def cmd_profile(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT name, taxes, bonus, tickets FROM stats WHERE userid = $1', message.from_user.id)
+        user = await conn.fetchrow('SELECT name, taxes, bonus FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
@@ -354,8 +353,6 @@ async def cmd_profile(message: Message):
         text += f'Профиль игрока <a href="tg://user?id={message.from_user.id}">{stats[0]}</a>:\n'
         text += f'\n🖥 Компьютеры: {stats[1]}/{stats[2]*5}\n⏫ Уровень комнаты: {stats[2]}\n'
         text += f'\n💵 Баланс: {stats[3]}$\n💸 Доход: {income}$ / 10 мин.\n💰 Чистый доход: {stats[4]}$ / 10 мин.\n'
-        if user[3] > 0:
-            text += f'\n🧧 У вас есть билеты удвоения: {user[3]}. Чтобы использовать его перейдите в /donate\n'
         if user[1] > taxes[stats[2]-1][1] / 3 * 2:
             text += f'\n⚠️ Высокая налоговая задолженность: {user[1]}$\nОплатить налоги: /pay_taxes\n'
         if network != None:

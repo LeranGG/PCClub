@@ -135,7 +135,7 @@ async def Network_name(message: Message, state: FSMContext):
                 return
             await update_data(message.from_user.username, message.from_user.id)
             await add_action(message.from_user.id, 'Network_name')
-            if bool(re.fullmatch(r"[а-яА-Яa-zA-Z0-9]+", message.text)) == True:
+            if bool(re.fullmatch(r"[а-яА-Яa-zA-Z0-9 '\"]+", message.text)):
                 name = await conn.fetchrow('SELECT * FROM networks WHERE name = $1', message.text)
                 if name is None:
                     await conn.execute('UPDATE networks SET name = $1 WHERE owner_id = $2', message.text, user[1])
@@ -310,10 +310,14 @@ async def Mailing_text(message: Message, state: FSMContext):
                     chat = randint(1, 9223372036854775807)
                     await conn.execute('INSERT INTO chats (chat_id, users) VALUES ($1, $2)', chat, [message.from_user.id, data.get('user')])
                 await conn.execute('INSERT INTO messages (msg_text, user_from, chat_id) VALUES ($1, $2, $3)', message.text, message.from_user.id, chat)
+                markup = InlineKeyboardMarkup(inline_keyboard=[
+                    [InlineKeyboardButton('✉️ Открыть сообщение', callback_data=f'chat_{chat}_1_{data.get('user')}')]
+                ])
                 await bot.send_message(data.get('user'), '📫 Вы получили новое сообщение')
                 await message.answer('✉️ Сообщение успешно отправлено')
             except Exception:
                 await message.answer('❌ Этому пользователю сейчас не получится отправить сообщение!')
+        await state.clear()
 
 
 @fsm_router.message(Send_channel.url)
@@ -346,7 +350,7 @@ async def Rename_name(message: Message, state: FSMContext):
         await add_action(message.from_user.id, 'Rename_name')
         if user[1] < datetime.datetime.today():
             if len(message.text) <= 15:
-                if bool(re.fullmatch(r"[а-яА-Яa-zA-Z0-9]+", message.text)) == True:
+                if bool(re.fullmatch(r"[а-яА-Яa-zA-Z0-9 '\"]+", message.text)):
                     name = await conn.fetchrow('SELECT * FROM stats WHERE name = $1', message.text)
                     if name is None:
                         await conn.execute('UPDATE stats SET name = $1 WHERE userid = $2', message.text, message.from_user.id)

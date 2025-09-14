@@ -1,12 +1,15 @@
 
 import datetime
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram import Router, F
+from aiogram import Router, F, Bot
 from funcs import get_db_pool, update_data, add_action
 from aiogram.fsm.context import FSMContext
 from fsm import Network_edit, Network_mailing, Network_search, Reowner
 from math import ceil
+from conf import TOKEN
 
+
+bot = Bot(token=TOKEN)
 
 cb_network_router = Router()
 
@@ -131,6 +134,7 @@ async def cb_network_type(callback: CallbackQuery):
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_type')
+        fran_type = await conn.fetchval('SELECT type FROM networks WHERE owner_id = $1', user[1])
         net_type = callback.data.split('_')[-2]
         if net_type == 'open':
             net_type2 = 'Открытая'
@@ -138,11 +142,16 @@ async def cb_network_type(callback: CallbackQuery):
             net_type2 = 'Закрытая'
         elif net_type == 'request':
             net_type2 = 'По заявке'
-        await conn.execute('UPDATE networks SET type = $1 WHERE owner_id = $2', net_type, user[1])
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text='🔙 Назад', callback_data=f'network_{callback.from_user.id}')]
-        ])
-        await callback.message.edit_text(f'✅ Вы успешно изменили статус франшизы на "{net_type2}"', reply_markup=markup)
+        if fran_type != net_type:
+            if net_type != 'request':
+                await conn.execute("UPDATE networks SET requests = '{}'::bigint[] WHERE owner_id = $1", user[1])
+            await conn.execute('UPDATE networks SET type = $1 WHERE owner_id = $2', net_type, user[1])
+            markup = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text='🔙 Назад', callback_data=f'network_{callback.from_user.id}')]
+            ])
+            await callback.message.edit_text(f'✅ Вы успешно изменили статус франшизы на "{net_type2}"', reply_markup=markup)
+        else:
+            await callback.message.edit_text(f'⚠️ Ваша франшиза и так находится в статусе {net_type2.lower()}')
 
 
 @cb_network_router.callback_query(F.data.startswith('network_edit_type'))
@@ -412,7 +421,7 @@ async def cb_network_join(callback: CallbackQuery):
         await add_action(callback.from_user.id, 'cb_network_join')
         data = callback.data.split('_')
         if user[1] is None:
-            info = await conn.fetchrow('SELECT type, requests, ban_users FROM networks WHERE owner_id = $1', int(data[2]))
+            info = await conn.fetchrow('SELECT type, requests, ban_users, admins FROM networks WHERE owner_id = $1', int(data[2]))
             if not callback.from_user.id in info[2]:
                 if info[0] == 'open':
                     await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', int(data[2]), callback.from_user.id)
@@ -422,8 +431,17 @@ async def cb_network_join(callback: CallbackQuery):
                 elif info[0] == 'request':
                     await conn.execute('UPDATE networks SET requests = array_append(requests, $1)', callback.from_user.id)
                     await callback.message.edit_text('📨 Вы успешно подали заявку на вступление!')
+                    for admin in info[3]:
+                        markup = InlineKeyboardMarkup(inline_keyboard=[
+                            [InlineKeyboardButton('📫 Завки', callback_data=f'network_requests_{admin}')]
+                        ])
+                        await bot.send_message(admin, '📬 Вам пришла заявка на вступление в франшизу', reply_markup=markup)
+                    markup = InlineKeyboardMarkup(inline_keyboard=[
+                        [InlineKeyboardButton('📫 Завки', callback_data=f'network_requests_{data[2]}')]
+                    ])
+                    await bot.send_message(data[2], '📬 Вам пришла заявка на вступление в франшизу', reply_markup=markup)
             else:
-                await callback.message.edit_text('😔 Вы были исключены из этой франшизы, и по этому не можете в нее вступить')
+                await callback.message.edit_text('😔 Вы были добавлены в черный список этой франшизы, и по этому не можете в нее вступить')
         else:
             await callback.message.edit_text('🫸 Вы уже состоите в франшизе')
 
