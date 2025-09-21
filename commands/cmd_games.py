@@ -5,7 +5,7 @@ from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from funcs import get_db_pool, update_data, add_action
 from aiogram import Router, F
 from random import randint
-from decimal import Decimal, getcontext
+from decimal import getcontext
 
 
 cmd_games_router = Router()

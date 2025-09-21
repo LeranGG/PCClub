@@ -29,18 +29,20 @@ async def cmd_taxes(message: Message):
             if user[2] == taxe[0]:
                 max_taxes = taxe[1]
         await update_data(message.from_user.username, message.from_user.id)
-        await add_action(message.from_user.id, 'cmd_taxes')
+        await add_action(message.from_user.id, 'cmd_pay_taxes')
         await message.answer(f'Налоги увеличиваются на 5% от вашего заработка.\nВаша задолженность: {user[1]}$ / {max_taxes}$\n❗ Если налоги достигнут максимума, то ваш доход будет заморожен!\nУплатить налоги: /pay_taxes')
 
 
 @cmd_economy_router.message(Command('pay_taxes'))
-async def cmd_taxes(message: Message):
+async def cmd_pay_taxes(message: Message):
     pool = await get_db_pool()
     async with pool.acquire() as conn:
         user = await conn.fetchrow('SELECT name, taxes, bal FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await message.answer('Сначала зарегистрируйтесь - /start')
             return
+        await update_data(message.from_user.username, message.from_user.id)
+        await add_action(message.from_user.id, 'cmd_pay_taxes')
         if user[2] >= user[1]:
             await conn.execute('UPDATE stats SET bal = bal - taxes, taxes = 0 WHERE userid = $2', message.from_user.id)
             await message.answer(f'✅ Вы успешно уплатили все налоги. Общая сумма составила {user[1]}$')

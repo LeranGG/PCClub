@@ -29,7 +29,9 @@ routers = [
     cmd_economy_router,
     cmd_admin_router,
     cb_network_router,
-    cb_economy_router
+    cb_economy_router,
+    cb_games_router,
+    cb_donate_router
 ]
 
 
