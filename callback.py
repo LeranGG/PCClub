@@ -91,25 +91,29 @@ async def cb_chat(callback: CallbackQuery):
         messages = await conn.fetch('SELECT user_from, msg_text, msg_date FROM messages WHERE chat_id = $1 ORDER BY msg_date DESC', int(callback.data.split('_')[1]))
         if len(messages) == 1:
             markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text=f'{num}', callback_data=f'{num}')]
+                [InlineKeyboardButton(text=f'{num}', callback_data=f'{num}')],
+                [InlineKeyboardButton(text='📬 Чаты', callback_data=f'chats_num_1_{callback.from_user.id}')]
             ])
         elif num == 1:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f'{num}', callback_data=f'{num}'),
-                 InlineKeyboardButton(text=f'➡️', callback_data=f'chat_{callback.data.split('_')[1]}_{num+1}_{callback.from_user.id}')]
+                 InlineKeyboardButton(text=f'➡️', callback_data=f'chat_{callback.data.split('_')[1]}_{num+1}_{callback.from_user.id}')],
+                [InlineKeyboardButton(text='📬 Чаты', callback_data=f'chats_num_1_{callback.from_user.id}')]
             ])
         elif num == len(messages):
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f'⬅️', callback_data=f'chat_{callback.data.split('_')[1]}_{num-1}_{callback.from_user.id}'),
-                 InlineKeyboardButton(text=f'{num}', callback_data=f'{num}')]
+                 InlineKeyboardButton(text=f'{num}', callback_data=f'{num}')],
+                [InlineKeyboardButton(text='📬 Чаты', callback_data=f'chats_num_1_{callback.from_user.id}')]
             ])
         else:
             markup = InlineKeyboardMarkup(inline_keyboard=[
                 [InlineKeyboardButton(text=f'⬅️', callback_data=f'chat_{callback.data.split('_')[1]}_{num-1}_{callback.from_user.id}'),
                  InlineKeyboardButton(text=f'{num}', callback_data=f'{num}'),
-                 InlineKeyboardButton(text=f'➡️', callback_data=f'chat_{callback.data.split('_')[1]}_{num+1}_{callback.from_user.id}')]
+                 InlineKeyboardButton(text=f'➡️', callback_data=f'chat_{callback.data.split('_')[1]}_{num+1}_{callback.from_user.id}')],
+                [InlineKeyboardButton(text='📬 Чаты', callback_data=f'chats_num_1_{callback.from_user.id}')]
             ])
-        await callback.message.answer(f'{user[1]}: {messages[num-1][1]}\n\nДата отправки: {messages[num-1][2].strftime('%H:%M:%S %d.%m.%Y')}', reply_markup=markup)
+        await callback.message.edit_text(f'{user[1]}: {messages[num-1][1]}\n\nДата отправки: {messages[num-1][2].strftime('%H:%M:%S %d.%m.%Y')}', reply_markup=markup)
 
 
 @callback_router.callback_query(F.data.startswith('cancel'))

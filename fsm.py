@@ -94,6 +94,7 @@ async def Reowner_userid(message: Message, state: FSMContext):
             foundUser = await conn.fetchval('SELECT userid FROM stats WHERE network = $1 AND userid = $2', message.from_user.id, int(message.from_user.id))
             if foundUser:
                 await message.answer('🔄️ Вы успешно передали все права на франшизу')
+                await conn.execute('UPDATE networks SET admins = array_remove(admins, $1) WHERE owner_id = $2', int(message.text), message.from_user.id)
                 await conn.execute('UPDATE networks SET owner_id = $1 WHERE owner_id = $2', int(message.text), message.from_user.id)
                 await conn.execute('UPDATE stats SET network = $1 WHERE network = $2', int(message.text), message.from_user.id)
             else:

@@ -30,11 +30,11 @@ async def cb_network_members(callback: CallbackQuery):
         text = '👥 Все клубы-участники франшизы'
         number = 1
         admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
-        for user in members[5*(num-1):5*(num)]:
-            text += f'\n{number}. <a href="tg://user?id={user[1]}">{user[0]}</a> ID: {user[1]} Доход: {user[2]}$'
-            if user[1] in admins:
+        for member in members[5*(num-1):5*(num)]:
+            text += f'\n{number}. <a href="tg://user?id={member[1]}">{member[0]}</a> ID: {member[1]} Доход: {member[2]}$'
+            if member[1] in admins:
                 text += ' (админ.)'
-            elif user[1] == user[1]:
+            elif member[1] == user[1]:
                 text += ' (владелец)'
             number += 1
             if len(members) < 4:
@@ -184,15 +184,15 @@ async def cb_network_mailing(callback: CallbackQuery, state: FSMContext):
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_mailing')
-        network = await conn.fetchrow('SELECT admins, mailing FROM networks WHERE owner_id = $1', userid[1])
-        if callback.from_user.id in network[0] or callback.from_user.id == userid[1]:
-            if network[1] + datetime.timedelta(hours=1) <= datetime.datetime.today():
+        network = await conn.fetchrow('SELECT admins, mailing FROM networks WHERE owner_id = $1', int(userid))
+        if callback.from_user.id in network[0] or callback.from_user.id == int(userid):
+            if network[1] + datetime.timedelta(seconds=1) <= datetime.datetime.today():
                 await callback.message.edit_text('✉️ Введите текст для рассылки или /cancel для отмены действия')
                 await state.set_state(Network_mailing.text)
             else:
                 await callback.message.edit_text('⚠️ Рассылку можно отправлять только раз в час')
         else:
-            await callback.message.edit_text('❌ Вы не являетесь владельцем франшизы')
+            await callback.message.edit_text('❌ Вы не являетесь владельцем или админом франшизы')
 
 
 @cb_network_router.callback_query(F.data.startswith('network_edit'))

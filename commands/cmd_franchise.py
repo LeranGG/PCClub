@@ -129,15 +129,15 @@ async def cmd_delete_user(message: Message):
             await message.answer('⚠️ Нельзя удалить себя')
         else:
             admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
-            user = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1 AND network = $2', int(message.text[13:]), user[1])
-            if int(message.text[13:]) == user[1]:
+            member = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1 AND network = $2', int(message.text[13:]), user[1])
+            if member == user[1]:
                 await message.answer('❌ Нельзя удалить владельца')
-            elif message.from_user.id in admins and int(message.text[13:]) in admins:
+            elif message.from_user.id in admins and member in admins:
                 await message.answer('❌ Нельзя удалить администратора')
-            elif user != None:
+            elif member != None:
                 if message.from_user.id == user[1] or message.from_user.id in admins:
                     await message.answer('✅ Вы успешно исключили клуб из франшизы')
-                    await bot.send_message(message.text[13:], '🫷 Ваш клуб был исключен из франшизы')
+                    await bot.send_message(member, '🫷 Ваш клуб был исключен из франшизы')
                     await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, int(message.text[13:]))
                     if int(message.text[13:]) in admins:
                         await conn.execute('UPDATE networks SET admins = array_remove(admins, $1) WHERE owner_id = $2', int(message.text[13:]), user[1])
@@ -161,18 +161,18 @@ async def cmd_ban_user(message: Message):
             await message.answer('⚠️ Нельзя забанить себя')
         else:
             admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
-            user = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1 AND network = $2', int(message.text[9:]), user[1])
-            if int(message.text[9:]) == user[1]:
+            member = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1 AND network = $2', int(message.text[9:]), user[1])
+            if member == user[1]:
                 await message.answer('❌ Нельзя забанить владельца')
-            elif message.from_user.id in admins and int(message.text[9:]) in admins:
+            elif message.from_user.id in admins and member in admins:
                 await message.answer('❌ Нельзя забанить администратора')
-            elif user != None:
+            elif member != None:
                 if message.from_user.id == user[1] or message.from_user.id in admins:
                     await message.answer('✅ Вы успешно заблокировали доступ к франшизе этому клубу')
-                    await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, int(message.text[9:]))
-                    await conn.execute('UPDATE networks SET ban_users = array_append(ban_users, $1) WHERE owner_id = $2', int(message.text[9:]), user[1])
-                    if int(message.text[13:]) in admins:
-                        await conn.execute('UPDATE networks SET admins = array_remove(admins, $1) WHERE owner_id = $2', int(message.text[13:]), user[1])
+                    await conn.execute('UPDATE stats SET network = $1 WHERE userid = $2', None, member)
+                    await conn.execute('UPDATE networks SET ban_users = array_append(ban_users, $1) WHERE owner_id = $2', member, user[1])
+                    if member in admins:
+                        await conn.execute('UPDATE networks SET admins = array_remove(admins, $1) WHERE owner_id = $2', member, user[1])
                 else:
                     await message.answer('❌ Вы не являетесь владельцем франшизы или её администратором')
             else:
@@ -192,16 +192,16 @@ async def cmd_reban_user(message: Message):
         if int(message.text[11:]) == message.from_user.id:
             await message.answer('⚠️ Нельзя разбанить себя')
         else:
+            member = int(message.text[11:])
             admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', user[1])
-            user = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1', int(message.text[11:]))
-            if int(message.text[11:]) == user[1]:
+            if member == user[1]:
                 await message.answer('❌ Нельзя разбанить владельца')
-            if message.from_user.id in admins and int(message.text[13:]) in admins:
+            if message.from_user.id in admins and member in admins:
                 await message.answer('❌ Нельзя разбанить администратора')
-            if user != None:
+            if member != None:
                 if message.from_user.id == user[1] or message.from_user.id in admins:
                     await message.answer('✅ Вы успешно разблокировали доступ к франшизе этому клубу')
-                    await conn.execute('UPDATE networks SET ban_users = array_remove(ban_users, $1) WHERE owner_id = $2', user, user[1])
+                    await conn.execute('UPDATE networks SET ban_users = array_remove(ban_users, $1) WHERE owner_id = $2', member, user[1])
                 else:
                     await message.answer('❌ Вы не являетесь владельцем франшизы или её администратором')
             else:
