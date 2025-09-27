@@ -311,9 +311,9 @@ async def Mailing_text(message: Message, state: FSMContext):
                     await conn.execute('INSERT INTO chats (chat_id, users) VALUES ($1, $2)', chat, [message.from_user.id, data.get('user')])
                 await conn.execute('INSERT INTO messages (msg_text, user_from, chat_id) VALUES ($1, $2, $3)', message.text, message.from_user.id, chat)
                 markup = InlineKeyboardMarkup(inline_keyboard=[
-                    [InlineKeyboardButton('✉️ Открыть сообщение', callback_data=f'chat_{chat}_1_{data.get('user')}')]
+                    [InlineKeyboardButton(text='✉️ Открыть сообщение', callback_data=f'chat_{chat}_1_{data.get("user")}')]
                 ])
-                await bot.send_message(data.get('user'), '📫 Вы получили новое сообщение')
+                await bot.send_message(data.get('user'), '📫 Вы получили новое сообщение', reply_markup=markup)
                 await message.answer('✉️ Сообщение успешно отправлено')
             except Exception:
                 await message.answer('❌ Этому пользователю сейчас не получится отправить сообщение!')

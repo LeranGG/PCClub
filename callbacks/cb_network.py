@@ -89,7 +89,7 @@ async def cb_network_requests(callback: CallbackQuery):
         for user in requests:
             text += f'\n{num}. <a href="tg://user?id={user}">{user}</a>'
             num += 1
-        text += '\n✅ Принять: /allow_user (id игрока*)'
+        text += '\n✅ Принять: /allow_user (id игрока*)\n❌ Отклонить: /reject_user (id игрока*)'
         await callback.message.edit_text(text, parse_mode='HTML')
 
 
@@ -266,7 +266,7 @@ async def cb_network_left_success(callback: CallbackQuery):
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_left_success')
         income = await conn.fetchval('SELECT income FROM networks WHERE owner_id = $1', user[2])
-        await conn.execute('UPDATE stats SET network = NULL, net_inc = 0 WHERE userid = $2', callback.from_user.id)
+        await conn.execute('UPDATE stats SET network = NULL, net_inc = 0 WHERE userid = $1', callback.from_user.id)
         await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', income-user[1], callback.from_user.id)
         await callback.message.edit_text('↩️ Вы покинули франшизу!')
 
@@ -433,11 +433,11 @@ async def cb_network_join(callback: CallbackQuery):
                     await callback.message.edit_text('📨 Вы успешно подали заявку на вступление!')
                     for admin in info[3]:
                         markup = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton('📫 Завки', callback_data=f'network_requests_{admin}')]
+                            [InlineKeyboardButton(text='📫 Завки', callback_data=f'network_requests_{admin}')]
                         ])
                         await bot.send_message(admin, '📬 Вам пришла заявка на вступление в франшизу', reply_markup=markup)
                     markup = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton('📫 Завки', callback_data=f'network_requests_{data[2]}')]
+                        [InlineKeyboardButton(text='📫 Завки', callback_data=f'network_requests_{data[2]}')]
                     ])
                     await bot.send_message(data[2], '📬 Вам пришла заявка на вступление в франшизу', reply_markup=markup)
             else:
@@ -482,7 +482,7 @@ async def cb_network(callback: CallbackQuery):
                 markup1.inline_keyboard.extend([[InlineKeyboardButton(text='🔄️ Передать права на франшизу', callback_data=f'network_owner_{callback.from_user.id}')],
                                                 [InlineKeyboardButton(text='🗑️ Удалить франшизу', callback_data=f'network_delete_{callback.from_user.id}')]])
             else:
-                markup1.inline_keyboard.append([InlineKeyboardButton(text='Покинуть франшизу', callback_data=f'network_left_{callback.from_user.id}')])
+                markup1.inline_keyboard.append([InlineKeyboardButton(text='↩️ Покинуть франшизу', callback_data=f'network_left_{callback.from_user.id}')])
             net_type = ''
             if network[4] == 'open':
                 net_type = 'Открытая'
@@ -491,7 +491,7 @@ async def cb_network(callback: CallbackQuery):
             elif network[4] == 'request':
                 net_type = 'По заявке'
             markup2 = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text='Покинуть франшизу', callback_data=f'network_left_{callback.from_user.id}')]
+                [InlineKeyboardButton(text='↩️ Покинуть франшизу', callback_data=f'network_left_{callback.from_user.id}')]
             ])
             members = await conn.fetchval('SELECT COUNT(*) FROM stats WHERE network = $1', network[1])
             admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', network[1])

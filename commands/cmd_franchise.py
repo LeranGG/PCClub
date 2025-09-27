@@ -243,7 +243,7 @@ async def cmd_franchise(message: Message):
                 markup1.inline_keyboard.extend([[InlineKeyboardButton(text='🔄️ Передать права на франшизу', callback_data=f'network_owner_{message.from_user.id}')],
                                                [InlineKeyboardButton(text='🗑️ Удалить франшизу', callback_data=f'network_delete_{message.from_user.id}')]])
             else:
-                markup1.inline_keyboard.append([InlineKeyboardButton(text='Покинуть франшизу', callback_data=f'network_left_{message.from_user.id}')])
+                markup1.inline_keyboard.append([InlineKeyboardButton(text='↩️ Покинуть франшизу', callback_data=f'network_left_{message.from_user.id}')])
             net_type = ''
             if network[4] == 'open':
                 net_type = 'Открытая'
@@ -252,7 +252,7 @@ async def cmd_franchise(message: Message):
             elif network[4] == 'request':
                 net_type = 'По заявке'
             markup2 = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text='Покинуть франшизу', callback_data=f'network_left_{message.from_user.id}')]
+                [InlineKeyboardButton(text='↩️ Покинуть франшизу', callback_data=f'network_left_{message.from_user.id}')]
             ])
             members = await conn.fetchval('SELECT COUNT(*) FROM stats WHERE network = $1', network[1])
             admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', network[1])

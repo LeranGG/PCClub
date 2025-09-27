@@ -71,7 +71,7 @@ async def cb_chats_num(callback: CallbackQuery):
                 ])
             user = chats[num-1][1]
             user.remove(callback.from_user.id)
-            await callback.message.answer(f'📬 Выберите чат:\n\n[{user[1]}](tg://user?id={user[0]})', reply_markup=markup, parse_mode='markdown')
+            await callback.message.answer(f'📬 Выберите чат:\n\n[{user[0]}](tg://user?id={user[0]})', reply_markup=markup, parse_mode='markdown')
         else:
             await callback.message.answer('📬 У вас пока нет активных чатов')
 

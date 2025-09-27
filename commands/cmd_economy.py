@@ -29,7 +29,7 @@ async def cmd_taxes(message: Message):
             if user[2] == taxe[0]:
                 max_taxes = taxe[1]
         await update_data(message.from_user.username, message.from_user.id)
-        await add_action(message.from_user.id, 'cmd_pay_taxes')
+        await add_action(message.from_user.id, 'cmd_taxes')
         await message.answer(f'Налоги увеличиваются на 5% от вашего заработка.\nВаша задолженность: {user[1]}$ / {max_taxes}$\n❗ Если налоги достигнут максимума, то ваш доход будет заморожен!\nУплатить налоги: /pay_taxes')
 
 
@@ -44,7 +44,7 @@ async def cmd_pay_taxes(message: Message):
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'cmd_pay_taxes')
         if user[2] >= user[1]:
-            await conn.execute('UPDATE stats SET bal = bal - taxes, taxes = 0 WHERE userid = $2', message.from_user.id)
+            await conn.execute('UPDATE stats SET bal = bal - taxes, taxes = 0 WHERE userid = $1', message.from_user.id)
             await message.answer(f'✅ Вы успешно уплатили все налоги. Общая сумма составила {user[1]}$')
         else:
             await message.answer('❌ У вас недостаточно средств')
@@ -85,9 +85,9 @@ async def cmd_sell(message: Message):
             text.append('1')
         text[0] = text[0].split('@PCClub_sBOT')[0]
         text[1] = text[1].split('@PCClub_sBOT')[0]
-        ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, text[0])
+        ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
         if text[1] == 'max':
-            text[1] = str(ctids)
+            text[1] = str(len(ctids))
         if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
             pcs = await conn.fetchrow('SELECT * FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
             for pc in prices:
