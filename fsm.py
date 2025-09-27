@@ -114,10 +114,11 @@ async def Network_mailing_text(message: Message, state: FSMContext):
             return
         await update_data(message.from_user.username, message.from_user.id)
         await add_action(message.from_user.id, 'Network_mailing_text')
-        members = await conn.fetch('SELECT userid FROM stats WHERE network = $1 AND userid != $1', user[1])
+        members = await conn.fetch('SELECT userid FROM stats WHERE network = $1', user[1])
         for member in members:
             try:
-                await bot.send_message(member[0], f'📥 Вам пришла рассылка от владельца франшизы: {message.text}')
+                if member[0] != message.from_user.id:
+                    await bot.send_message(member[0], f'📥 Вам пришла рассылка от владельца франшизы: {message.text}')
             except Exception:
                 pass
         await conn.execute('UPDATE networks SET mailing = $1 WHERE owner_id = $2', datetime.datetime.today(), message.from_user.id)

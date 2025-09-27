@@ -77,13 +77,13 @@ async def cb_network_requests(callback: CallbackQuery):
     pool = await get_db_pool()
     userid = callback.data.split('_')[-1]
     async with pool.acquire() as conn:
-        user = await conn.fetchrow('SELECT userid FROM stats WHERE userid = $1', callback.from_user.id)
+        user = await conn.fetchrow('SELECT userid, network FROM stats WHERE userid = $1', callback.from_user.id)
         if user == None or user[0] != int(userid):
             await callback.answer('⚠️ Это не твое сообщение', show_alert=True)
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_requests')
-        requests = await conn.fetchval('SELECT requests FROM networks WHERE owner_id = $1', callback.from_user.id)
+        requests = await conn.fetchval('SELECT requests FROM networks WHERE owner_id = $1', user[1])
         text = '📫 Все заявки на вход:'
         num = 1
         for user in requests:
@@ -184,7 +184,7 @@ async def cb_network_mailing(callback: CallbackQuery, state: FSMContext):
             return
         await update_data(callback.from_user.username, callback.from_user.id)
         await add_action(callback.from_user.id, 'cb_network_mailing')
-        network = await conn.fetchrow('SELECT admins, mailing FROM networks WHERE owner_id = $1', int(userid))
+        network = await conn.fetchrow('SELECT admins, mailing FROM networks WHERE owner_id = $1', int(user[1]))
         if callback.from_user.id in network[0] or callback.from_user.id == int(userid):
             if network[1] + datetime.timedelta(seconds=1) <= datetime.datetime.today():
                 await callback.message.edit_text('✉️ Введите текст для рассылки или /cancel для отмены действия')
@@ -267,7 +267,7 @@ async def cb_network_left_success(callback: CallbackQuery):
         await add_action(callback.from_user.id, 'cb_network_left_success')
         income = await conn.fetchval('SELECT income FROM networks WHERE owner_id = $1', user[2])
         await conn.execute('UPDATE stats SET network = NULL, net_inc = 0 WHERE userid = $1', callback.from_user.id)
-        await conn.execute('UPDATE networks SET income = $1 WHERE owner_id = $2', income-user[1], callback.from_user.id)
+        await conn.execute('UPDATE networks SET admins = array_remove(admins, $1) WHERE owner_id = $2', callback.from_user.id, user[2])
         await callback.message.edit_text('↩️ Вы покинули франшизу!')
 
 
