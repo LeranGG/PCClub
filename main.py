@@ -37,7 +37,7 @@ routers = [
 
 async def every_10_min():
     while True:
-        await asyncio.sleep(600)
+        await asyncio.sleep(120)
         pool = await get_db_pool()
         async with pool.acquire() as conn:
             users = await conn.fetch('SELECT userid, bal, income, network, all_wallet, premium, taxes, room, max_bal FROM stats')
@@ -67,7 +67,7 @@ async def every_10_min():
                             admin = i/100*5
                         i = i + admin + prem + summ + ad_inc
                         await conn.execute('UPDATE stats SET bal = bal + $1, all_wallet = all_wallet + $1, taxes = taxes + $2 WHERE userid = $3', i, i/100*5, user[0])
-                        await conn.execute('UPDATE stats SET max_bal = GREATEST(max_bal, bal + income) WHERE userid = $1', user[0])
+                        await conn.execute('UPDATE stats SET max_bal = GREATEST(max_bal, bal) WHERE userid = $1', user[0])
                         if user[3] != None:
                             await conn.execute('UPDATE networks SET income = income + $1 WHERE owner_id = $2', i, user[3])
                             await conn.execute('UPDATE stats SET net_inc = net_inc + $1 WHERE userid = $2', i, user[0])

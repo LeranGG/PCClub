@@ -57,7 +57,7 @@ async def cmd_start(message: Message):
         user = await conn.fetchrow('SELECT name FROM stats WHERE userid = $1', message.from_user.id)
         if user is None:
             await conn.execute('INSERT INTO stats (userid, username) VALUES ($1, $2)', message.from_user.id, message.from_user.username)
-            if len(message.text) > 6:
+            if len(message.text.split('@')[0]) > 6:
                 if message.text[7:] == '-1001680896621':
                     await bot.send_message(ADMIN[0], f'Новый пользователь: [{message.from_user.first_name}](tg://user?id={message.from_user.id}) @{message.from_user.username} от Arizona HOT', parse_mode='markdown')
                 elif int(message.text[7:]) == ADMIN[0]:

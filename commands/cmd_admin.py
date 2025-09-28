@@ -130,6 +130,8 @@ async def cmd_delete(message: Message):
             await conn.execute('DELETE FROM titles')
             await conn.execute('DELETE FROM messages')
             await conn.execute('DELETE FROM chats')
+            await conn.execute('DELETE FROM ads')
+            await message.answer('Почистил')
             
 
 @cmd_admin_router.message(Command('send_channel'))
