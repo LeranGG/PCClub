@@ -1,7 +1,7 @@
 
 from aiogram.filters import Command
 from aiogram.types import Message
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from test import upgrade
 from aiogram import Router
 

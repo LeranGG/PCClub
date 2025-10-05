@@ -1,7 +1,7 @@
 
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from aiogram import Bot, Router, F
 from conf import TOKEN
 
@@ -88,6 +88,9 @@ async def cmd_set_admin(message: Message):
         else:
             user = await conn.fetchval('SELECT userid FROM stats WHERE userid = $1 AND network = $2', int(message.text[11:]), message.from_user.id)
             if user != None:
+                admins = await conn.fetchval('SELECT admins FROM networks WHERE owner_id = $1', message.from_user.id)
+                if int(message.text[11:]) in admins:
+                    await message.answer('⚠️ Этот пользователь уже является администратором')
                 await message.answer('✅ Вы успешно назначили клуб администратором')
                 await conn.execute('UPDATE networks SET admins = array_append(admins, $1) WHERE owner_id = $2', int(message.text[11:]), message.from_user.id)
             else:

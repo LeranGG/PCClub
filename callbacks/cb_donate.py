@@ -3,7 +3,7 @@ import uuid
 from aiogram import Router, F
 from yoomoney import Quickpay
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 
 
 cb_donate_router = Router()

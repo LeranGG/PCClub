@@ -2,7 +2,7 @@
 import datetime
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from test import update, prices, upgrade, ads
 from random import randint
 from decimal import Decimal, getcontext

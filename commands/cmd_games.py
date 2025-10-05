@@ -2,7 +2,7 @@
 import asyncio
 from aiogram.filters import Command
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from aiogram import Router, F
 from random import randint
 from decimal import getcontext
@@ -90,13 +90,14 @@ async def cmd_game2_chat(message: Message):
             if int(command[2]) >= 5000:
                 if int(command[2]) <= user[1]:
                     sent_dice = await message.answer_dice(emoji='🎲')
-                    await asyncio.sleep(3)
                     dice_value = sent_dice.dice.value
                     if dice_value == int(command[1]):
                         await conn.execute('UPDATE stats SET bal = bal + $1 WHERE userid = $2', int(command[2])*5, message.from_user.id)
+                        await asyncio.sleep(3)
                         await message.answer(f'🎊 Вы угадали и получаете {int(command[2])*6}$')
                     else:
                         await conn.execute('UPDATE stats SET bal = bal - $1 WHERE userid = $2', int(command[2]), message.from_user.id)
+                        await asyncio.sleep(3)
                         await message.answer(f'💥 Вы не угадали и теряете {command[2]}$')
                 else:
                     await message.answer('❌ У вас не хватает $')

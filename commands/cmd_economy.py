@@ -1,6 +1,6 @@
 
 from aiogram.filters import Command
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram import Router, F
 from test import prices, taxes
@@ -85,10 +85,10 @@ async def cmd_sell(message: Message):
             text.append('1')
         text[0] = text[0].split('@PCClub_sBOT')[0]
         text[1] = text[1].split('@PCClub_sBOT')[0]
-        ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
         if text[1] == 'max':
             text[1] = str(len(ctids))
-        if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
+        if len(text) == 2 and text[0].isdigit() and text[1].isdigit():
+            ctids = await conn.fetch('SELECT ctid FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
             pcs = await conn.fetchrow('SELECT * FROM pc WHERE userid = $1 AND lvl = $2', message.from_user.id, int(text[0]))
             for pc in prices:
                 if int(text[0]) == pc[0]:
@@ -131,7 +131,7 @@ async def cmd_buy(message: Message):
             while user[1] < prices[int(int(text[0])-1)][2]*int(text[1]):
                 text[1] -= 1
             text[1] = str(text[1])
-        if (len(text) == 2 and text[0].isdigit() and text[1].isdigit()) or (len(text) == 1 and text[0].isdigit()):
+        if len(text) == 2 and text[0].isdigit() and text[1].isdigit():
             for el in prices:
                 if int(text[0]) == el[0] and user[1] >= el[2]*int(text[1]) and user[3]+int(text[1]) <= user[2]*5 and user[2] >= int(text[0]):
                     pc_inc = Decimal(str(el[1]))

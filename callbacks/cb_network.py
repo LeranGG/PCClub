@@ -2,7 +2,7 @@
 import datetime
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram import Router, F, Bot
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from aiogram.fsm.context import FSMContext
 from fsm import Network_edit, Network_mailing, Network_search, Reowner
 from math import ceil

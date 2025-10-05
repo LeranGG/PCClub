@@ -3,7 +3,7 @@ from aiogram import Router, F
 from fsm import Games
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 
 
 cb_games_router = Router()

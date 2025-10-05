@@ -3,7 +3,7 @@ import re, datetime, asyncio
 from aiogram import Router, Bot
 from aiogram.types import Message, InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.fsm.context import FSMContext
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from random import randint
 from decimal import Decimal, getcontext
 from conf import TOKEN, PCCLUB

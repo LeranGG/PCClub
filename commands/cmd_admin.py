@@ -2,7 +2,7 @@
 from aiogram.filters import Command
 from aiogram.types import Message
 from conf import ADMIN, TOKEN
-from funcs import get_db_pool
+from funcs.funcs import get_db_pool
 from aiogram import Router, Bot
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
 import datetime, secrets, string

@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram import Router, F, Bot
 from yoomoney import Client
 from conf import PAYMENT_TOKEN, TOKEN
-from funcs import get_db_pool, update_data, add_action
+from funcs.funcs import get_db_pool, update_data, add_action
 from fsm import Mailing
 
 
